@@ -1,5 +1,6 @@
 package com.tradeshift.blayze.collection
 
+import com.google.protobuf.ByteString
 import com.tradeshift.blayze.Protos
 import java.util.TreeMap
 
@@ -22,8 +23,18 @@ class SparseIntVector private constructor(private val indices: IntArray, private
      */
     override fun iterator(): Iterator<Pair<Int, Int>> = indices.zip(values).iterator()
 
-    fun toProto(): Protos.SparseIntVector = Protos.SparseIntVector.newBuilder()
-            .addAllIndices(indices.asIterable()).addAllValues(values.asIterable()).build()
+    fun toProto(): Protos.SparseIntVector {
+        fun bytes(i: IntArray): ByteString {
+            val out = ByteString.newOutput()
+            i.forEach { out.write(it) }
+            return out.toByteString()
+        }
+
+        return Protos.SparseIntVector.newBuilder()
+                .setIndices(bytes(indices))
+                .setValues(bytes(values))
+                .build()
+    }
 
     companion object {
         fun fromMap(map: Map<Int, Int>): SparseIntVector {
@@ -31,7 +42,10 @@ class SparseIntVector private constructor(private val indices: IntArray, private
             return SparseIntVector(sortedNonZeros.keys.toIntArray(), sortedNonZeros.values.toIntArray())
         }
 
-        fun fromProto(proto: Protos.SparseIntVector): SparseIntVector =
-                SparseIntVector(proto.indicesList.toIntArray(), proto.valuesList.toIntArray())
+        fun fromProto(proto: Protos.SparseIntVector): SparseIntVector {
+            val indices = proto.indices.map { it.toInt() }.toIntArray()
+            val values = proto.values.map { it.toInt() }.toIntArray()
+            return SparseIntVector(indices, values)
+        }
     }
 }

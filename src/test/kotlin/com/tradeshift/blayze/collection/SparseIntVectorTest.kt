@@ -11,9 +11,10 @@ class SparseIntVectorTest {
             7 to 70
     ))
 
+    val expected = listOf(1 to 10, 2 to 20, 3 to 30, 7 to 70)
+
     @Test
     fun iterates_in_order() {
-        val expected = listOf(1 to 10, 2 to 20, 3 to 30, 7 to 70)
         assertEquals(expected, vector.toList())
     }
 
@@ -23,5 +24,11 @@ class SparseIntVectorTest {
 
         val expected = listOf(1 to 20, 2 to 20, 3 to 30, 4 to 40, 7 to 140)
         assertEquals(expected, vector.add(other).toList())
+    }
+
+    @Test
+    fun test_serialization() {
+        val serdeVector = SparseIntVector.fromProto(vector.toProto())
+        assertEquals(expected, serdeVector.toList())
     }
 }
