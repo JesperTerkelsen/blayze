@@ -2,7 +2,9 @@ package com.tradeshift.blayze.features
 
 import com.tradeshift.blayze.Protos
 import com.tradeshift.blayze.collection.Counter
-import com.tradeshift.blayze.collection.SparseIntVector
+import com.tradeshift.blayze.collection.add
+import com.tradeshift.blayze.collection.items
+import com.tradeshift.blayze.collection.sparseIntVectorFromMap
 import com.tradeshift.blayze.dto.Outcome
 import kotlin.math.ln
 import kotlin.math.max
@@ -12,7 +14,7 @@ class Multinomial private constructor(
         private val includeFeatureProbability: Double = 1.0,
         private val pseudoCount: Double = 1.0,
         private val outcomeIndices: Map<Outcome, Int>,
-        private val features: Map<String, SparseIntVector>
+        private val features: Map<String, Protos.SparseIntVector>
 ) : Feature<Multinomial, Counter<String>> {
 
     /**
@@ -30,7 +32,7 @@ class Multinomial private constructor(
     private val nFeaturesPerOutcome: IntArray by lazy {
         val res = IntArray(outcomeIndices.size)
         for (vec in features.values) {
-            for ((idx, count) in vec) {
+            for ((idx, count) in vec.items()) {
                 res[idx] += count
             }
         }
@@ -46,7 +48,7 @@ class Multinomial private constructor(
         val formattedUpdates = invertUpdates(sampleUpdates(updates.asSequence()))
         for ((feature, counter) in formattedUpdates) {
             val indexToUpdate = counter.mapKeys { getOrCreateIndex(it.key)  }
-            val vec = SparseIntVector.fromMap(indexToUpdate)
+            val vec = sparseIntVectorFromMap(indexToUpdate)
             featuresCopy[feature] = featuresCopy[feature]?.add(vec) ?: vec
         }
         return Multinomial(includeFeatureProbability, pseudoCount, outcomesCopy, featuresCopy)
@@ -81,7 +83,7 @@ class Multinomial private constructor(
             val vector = features[feature]
             if (vector != null) {
                 nFeatures += count
-                for ((idx, v) in vector) {
+                for ((idx, v) in vector.items()) {
                     nonZeroLogProbs[idx] += count * logProbability(v, nFeaturesPerOutcome[idx])
                     nonZeroCounts[idx] += count
                 }
@@ -135,7 +137,7 @@ class Multinomial private constructor(
             .setIncludeFeatureProbability(includeFeatureProbability)
             .setPseudoCount(pseudoCount)
             .putAllOutcomes(outcomeIndices)
-            .putAllFeatures(features.mapValues { it.value.toProto() })
+            .putAllFeatures(features)
             .build()
 
     companion object {
@@ -143,6 +145,6 @@ class Multinomial private constructor(
                 proto.includeFeatureProbability,
                 proto.pseudoCount,
                 proto.outcomesMap,
-                proto.featuresMap.mapValues { SparseIntVector.fromProto(it.value) })
+                proto.featuresMap)
     }
 }
