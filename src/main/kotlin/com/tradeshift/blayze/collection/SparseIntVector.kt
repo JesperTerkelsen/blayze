@@ -2,6 +2,8 @@ package com.tradeshift.blayze.collection
 
 import com.google.protobuf.ByteString
 import com.tradeshift.blayze.Protos
+import java.nio.ByteBuffer
+import java.nio.IntBuffer
 import java.util.TreeMap
 
 
@@ -30,6 +32,9 @@ class SparseIntVector private constructor(private val indices: IntArray, private
             return out.toByteString()
         }
 
+        //ByteBuffer.wrap(array).asIntBuffer().array()
+        //ByteBuffer.allocate(1).asIntBuffer().array()///.put(indices[0])
+
         return Protos.SparseIntVector.newBuilder()
                 .setIndices(bytes(indices))
                 .setValues(bytes(values))
@@ -43,9 +48,24 @@ class SparseIntVector private constructor(private val indices: IntArray, private
         }
 
         fun fromProto(proto: Protos.SparseIntVector): SparseIntVector {
+            fun backingArray(i: ByteString) = i.asReadOnlyByteBuffer().asIntBuffer().array()
+
+            proto.indices.asReadOnlyByteBuffer().asIntBuffer()
+            //val s: Sequence<Byte> = proto.indices.asSequence().map { it.toInt() }
             val indices = proto.indices.map { it.toInt() }.toIntArray()
             val values = proto.values.map { it.toInt() }.toIntArray()
             return SparseIntVector(indices, values)
         }
+    }
+
+    class BackedIntSequence(val b: ByteString): Iterable<Int> {
+        override fun iterator(): Iterator<Int> {
+            val intBuffer = b.asReadOnlyByteBuffer().asIntBuffer()
+            return object: Iterator<Int> {
+                override fun hasNext(): Boolean = intBuffer.hasRemaining()
+                override fun next(): Int = intBuffer.get()
+            }
+        }
+
     }
 }
