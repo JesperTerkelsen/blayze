@@ -159,14 +159,14 @@ class GaussianTest {
                 )
         )
 
-        val actual = Math.exp(gauss.logPosteriorPredictive(setOf("p"), 23.0, Gaussian.Parameters(mu0 = 28.0, nu = 2, beta = 120.0, alpha = 1))["p"]!!)
+        val actual = Math.exp(gauss.logPosteriorPredictive(setOf("p"), 23.0, Gaussian.Parameters(mu0 = 28.0, nu = 2.0, beta = 120.0, alpha = 1.0))["p"]!!)
 
         assertEquals(expected, actual, 1e-6)
     }
 
     @Test
     fun posterior_predictive_uses_default_parameters_if_null_is_given() {
-        val gauss = Gaussian(Gaussian.Parameters(mu0 = 28.0, nu = 2, beta = 120.0, alpha = 1)).batchUpdate(
+        val gauss = Gaussian(Gaussian.Parameters(mu0 = 28.0, nu = 2.0, beta = 120.0, alpha = 1.0)).batchUpdate(
                 listOf(
                         "p" to 20.0,
                         "p" to 30.0,
@@ -181,14 +181,14 @@ class GaussianTest {
 
     @Test
     fun with_parameters_sets_the_default_parameters() {
-        val expected = Gaussian.Parameters(0.1, 2, 0.3, 4)
+        val expected = Gaussian.Parameters(0.1, 2.0, 0.3, 4.0)
         val g = Gaussian().withParameters(expected)
         assertEquals(expected, g.defaultParameters)
     }
 
     @Test
     fun can_be_serialized_and_deserialized() {
-        val gaussian = Gaussian(Gaussian.Parameters(0.1, 2, 0.3, 4)).batchUpdate(listOf(
+        val gaussian = Gaussian(Gaussian.Parameters(0.1, 2.0, 0.3, 4.0)).batchUpdate(listOf(
                 "yes" to 1.0,
                 "yes" to 2.0,
                 "yes" to 3.0,

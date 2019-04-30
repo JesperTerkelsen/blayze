@@ -448,7 +448,7 @@ class ModelTest {
     fun withParameters_adds_feature_with_parameters_if_feature_does_not_exist() {
         val parametersText = Multinomial.Parameters(0.8392657028, 0.5245625129)
         val parametersCategorical = Multinomial.Parameters(0.1080993273, 0.4034269615)
-        val parametersGaussian = Gaussian.Parameters(0.8392657028, 22, 0.83926570281, 221)
+        val parametersGaussian = Gaussian.Parameters(0.8392657028, 22.0, 0.83926570281, 221.0)
 
         val model = Model()
                 .withParameters(Model.Parameters(
@@ -472,7 +472,7 @@ class ModelTest {
     fun withParameters_set_default_parameter_for_existing_features() {
         val parametersText = Multinomial.Parameters(0.8392657028, 0.5245625129)
         val parametersCategorical = Multinomial.Parameters(0.1080993273, 0.4034269615)
-        val parametersGaussian = Gaussian.Parameters(0.8392657028, 22, 0.83926570281, 221)
+        val parametersGaussian = Gaussian.Parameters(0.8392657028, 22.0, 0.83926570281, 221.0)
 
         val model = Model(textFeatures = mapOf("tFoo" to Text()), categoricalFeatures = mapOf("cFoo" to Categorical()), gaussianFeatures = mapOf("gFoo" to Gaussian()))
                 .withParameters(Model.Parameters(
@@ -543,13 +543,13 @@ class ModelTest {
                 0,
                 mapOf("foo1" to Multinomial.Parameters(0.51, 0.52)),
                 mapOf("bar" to Multinomial.Parameters(0.31, 0.32)),
-                mapOf("baz" to Gaussian.Parameters(1.0, 1, 2.0, 2))
+                mapOf("baz" to Gaussian.Parameters(1.0, 1.0, 2.0, 2.0))
         ))
 
         verify { text1.logPosteriorPredictive(setOf("o1", "o2"), "yes yes", Multinomial.Parameters(0.51, 0.52)) }
         verify { text2.logPosteriorPredictive(setOf("o1", "o2"), "no no", null) }
         verify { categorical.logPosteriorPredictive(setOf("o1", "o2"), "nope", Multinomial.Parameters(0.31, 0.32)) }
-        verify { gaussian.logPosteriorPredictive(setOf("o1", "o2"), 1.0, Gaussian.Parameters(1.0, 1, 2.0, 2)) }
+        verify { gaussian.logPosteriorPredictive(setOf("o1", "o2"), 1.0, Gaussian.Parameters(1.0, 1.0, 2.0, 2.0)) }
     }
 
     @Test
@@ -590,13 +590,13 @@ class ModelTest {
                 0,
                 mapOf("foo1" to Multinomial.Parameters(0.51, 0.52)),
                 mapOf("bar" to Multinomial.Parameters(0.31, 0.32)),
-                mapOf("baz" to Gaussian.Parameters(1.0, 1, 2.0, 2))
+                mapOf("baz" to Gaussian.Parameters(1.0, 1.0, 2.0, 2.0))
         ))
 
         verify { text1.batchUpdate(listOf("o1" to "yes yes"), Multinomial.Parameters(0.51, 0.52)) }
         verify { text2.batchUpdate(listOf("o1" to "yes no"), null) }
         verify { categorical.batchUpdate(listOf("o1" to "nope"), Multinomial.Parameters(0.31, 0.32)) }
-        verify { gaussian.batchUpdate(listOf("o1" to 1.0), Gaussian.Parameters(1.0, 1, 2.0, 2)) }
+        verify { gaussian.batchUpdate(listOf("o1" to 1.0), Gaussian.Parameters(1.0, 1.0, 2.0, 2.0)) }
     }
 
 }

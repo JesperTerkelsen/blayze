@@ -40,9 +40,9 @@ class Gaussian private constructor(
      */
     data class Parameters(
             val mu0: Double = 0.0,
-            val nu: Int = 0,
+            val nu: Double = 0.0,
             val beta: Double = 0.0,
-            val alpha: Int = 0
+            val alpha: Double = 0.0
     )
 
     /**
@@ -93,15 +93,15 @@ class Gaussian private constructor(
         val mu = est?.mean ?: 0.0
         val sigma = est?.stdev ?: 0.0
 
-        if (n < 2 || sigma == 0.0) { // Hack
-            return null
-        }
-
         val pmu = (p.nu * p.mu0 + n * mu) / (p.nu + n)
         val pnu = (p.nu + n)
         val palpha = (p.alpha + n / 2.0)
         val ss = sigma.pow(2.0) * (n - 1) // n-1 here, since the way std is calculated
         val pbeta = (p.beta + (1.0 / 2.0) * ss + n * p.nu / (n + p.nu) * (mu - p.mu0).pow(2.0) / 2.0)
+
+        if (palpha == 0.0 || pnu == 0.0 || pbeta == 0.0 || !pbeta.isFinite()) {
+            return null // Hack
+        }
 
         return logStudentT(value, 2 * palpha, pmu, sqrt(pbeta * (pnu + 1) / (palpha * pnu)))
     }
@@ -174,8 +174,11 @@ class Gaussian private constructor(
 
     companion object {
         fun fromProto(proto: Protos.Gaussian): Gaussian {
+            // backwards compatibility with integer alpha and nu's.
+            val alpha = if (proto.alphaOld != 0 && proto.alpha == 0.0) proto.alphaOld.toDouble() else proto.alpha
+            val nu = if (proto.nuOld != 0 && proto.nu == 0.0) proto.nuOld.toDouble() else proto.nu
             return Gaussian(
-                    Parameters(proto.mu0, proto.nu, proto.beta, proto.alpha),
+                    Parameters(proto.mu0, nu, proto.beta, alpha),
                     proto.estimatorsMap.mapValues { StreamingEstimator.fromProto(it.value) }
             )
         }

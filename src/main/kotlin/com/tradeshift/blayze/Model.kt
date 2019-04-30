@@ -84,7 +84,7 @@ class Model(
         return Model(priorCounts, text, categorical, gaussian, parameters.priorPseudoCount)
     }
 
-    private fun <V, P, F : Feature<F, V, P>> withParameters(features: Map<FeatureName, F>, parameters: Map<FeatureName, P>, creator: () -> F ): Map<FeatureName, F> {
+    private fun <V, P, F : Feature<F, V, P>> withParameters(features: Map<FeatureName, F>, parameters: Map<FeatureName, P>, creator: () -> F): Map<FeatureName, F> {
         val cf = features.toMutableMap()
         for ((n, p) in parameters) {
             val f = cf[n] ?: creator()
@@ -133,18 +133,55 @@ class Model(
      * @param parameters The [Parameters] to use when predicting. If null, the default parameters are used.
      * @return predicted outcomes and their probability, e.g. {"positive": 0.3124, "negative": 0.6876}
      */
-    fun predict(inputs: Inputs, parameters: Parameters? = null): Map<Outcome, Double> {
+    fun predict(inputs: Inputs, parameters: Parameters?): Map<Outcome, Double> {
         if (priorCounts.isEmpty()) {
             return mapOf()
         }
 
         val maps = mutableListOf<Map<Outcome, Double>>()
         maps.add(if (parameters == null) defaultLogPrior else logPrior(parameters.priorPseudoCount))
-        maps.addAll(logProbabilities(textFeatures, inputs.text, parameters?.text ?: mapOf()))
-        maps.addAll(logProbabilities(categoricalFeatures, inputs.categorical, parameters?.categorical ?: mapOf()))
-        maps.addAll(logProbabilities(gaussianFeatures, inputs.gaussian, parameters?.gaussian ?: mapOf()))
+        maps.addAll(logProbabilities(textFeatures, inputs.text, parameters?.text ?: mapOf()).values)
+        maps.addAll(logProbabilities(categoricalFeatures, inputs.categorical, parameters?.categorical ?: mapOf()).values)
+        maps.addAll(logProbabilities(gaussianFeatures, inputs.gaussian, parameters?.gaussian ?: mapOf()).values)
 
         return normalize(sumMaps(maps))
+    }
+
+    /**
+     * Predicts the outcome of [Inputs] but returns the log probabilities for each feature (normalized to zero).
+     * Useful for debugging and feature selection.
+     */
+    fun debugPredict(inputs: Inputs, parameters: Parameters?): Map<FeatureName, Map<Outcome, Double>> {
+        if (priorCounts.isEmpty()) {
+            return mapOf()
+        }
+
+        val maps = mutableMapOf<FeatureName, Map<Outcome, Double>>()
+        maps["prior"] = (if (parameters == null) defaultLogPrior else logPrior(parameters.priorPseudoCount))
+        maps.putAll(logProbabilities(textFeatures, inputs.text, parameters?.text ?: mapOf()).mapKeys { "text.${it.key}" })
+        maps.putAll(logProbabilities(categoricalFeatures, inputs.categorical, parameters?.categorical ?: mapOf()).mapKeys { "categorical.${it.key}" })
+        maps.putAll(logProbabilities(gaussianFeatures, inputs.gaussian, parameters?.gaussian ?: mapOf()).mapKeys { "gaussian.${it.key}" })
+        return maps.mapValues { o ->
+            val m = (o.value.values.min() ?: 0.0)
+            o.value.mapValues { it.value - m }
+        }
+    }
+
+    /**
+     * Predicts the outcome of [Inputs] but returns the log probabilities for each feature (normalized to zero).
+     * Useful for debugging and feature selection.
+     */
+    fun debugPredict(inputs: Inputs): Map<FeatureName, Map<Outcome, Double>> {
+        return debugPredict(inputs, null)
+    }
+
+    /**
+     * Predicts the outcome of [Inputs] using bayesian naive bayes, e.g. p(outcome | inputs, D) = p(inputs | outcome, D)p(outcome | D)/p(inputs | D), where D is the previously observed data.
+     *
+     * @return predicted outcomes and their probability, e.g. {"positive": 0.3124, "negative": 0.6876}
+     */
+    fun predict(inputs: Inputs): Map<Outcome, Double> {
+        return predict(inputs, null)
     }
 
     /**
@@ -155,8 +192,19 @@ class Model(
      *
      * @return new updated Model
      */
-    fun add(update: Update, parameters: Parameters? = null): Model {
+    fun add(update: Update, parameters: Parameters?): Model {
         return batchAdd(listOf(update), parameters)
+    }
+
+    /**
+     * Creates a new model with the [Update] added.
+     *
+     * @param update The update
+     *
+     * @return new updated Model
+     */
+    fun add(update: Update): Model {
+        return batchAdd(listOf(update), null)
     }
 
     /**
@@ -167,7 +215,7 @@ class Model(
      *
      * @return new updated Model
      */
-    fun batchAdd(updates: List<Update>, parameters: Parameters? = null): Model {
+    fun batchAdd(updates: List<Update>, parameters: Parameters?): Model {
         val newPriorCounts: Map<String, Int> = updates.map { it.outcome }.groupingBy { it }.eachCountTo(priorCounts.toMutableMap())
 
         val newCategoricalFeatures = updateFeatures(categoricalFeatures, { Categorical() }, updates, { it.categorical }, parameters?.categorical ?: mapOf())
@@ -177,8 +225,19 @@ class Model(
         return Model(newPriorCounts, newTextFeatures, newCategoricalFeatures, newGaussianFeatures)
     }
 
-    private fun <F, V, P> logProbabilities(features: Map<FeatureName, Feature<F, V, P>>, values: Map<FeatureName, V>, parameters: Map<FeatureName, P>): List<Map<Outcome, Double>> {
-        val maps = mutableListOf<Map<Outcome, Double>>()
+    /**
+     * Creates a new model with the [Update]s added.
+     *
+     * @param updates List of updates
+     *
+     * @return new updated Model
+     */
+    fun batchAdd(updates: List<Update>): Model {
+        return batchAdd(updates, null)
+    }
+
+    private fun <F, V, P> logProbabilities(features: Map<FeatureName, Feature<F, V, P>>, values: Map<FeatureName, V>, parameters: Map<FeatureName, P>): Map<FeatureName, Map<Outcome, Double>> {
+        val maps = mutableMapOf<FeatureName, Map<Outcome, Double>>()
         for ((featureName, featureValue) in values) {
             val feature = features[featureName]
             if (feature != null) {
@@ -186,7 +245,7 @@ class Model(
                 assert(logPosteriorPredictive.keys == priorCounts.keys) {
                     "$featureName outcomes did not match logPrior outcomes. Expected ${priorCounts.keys}, Actual: ${logPosteriorPredictive.keys}"
                 }
-                maps.add(logPosteriorPredictive)
+                maps[featureName] = logPosteriorPredictive
             }
         }
         return maps
